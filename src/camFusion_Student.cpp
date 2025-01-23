@@ -125,7 +125,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
     // display image
     string windowName = "3D Objects";
-    cv::namedWindow(windowName, 1);
+    cv::namedWindow(windowName, 2);
     cv::imshow(windowName, topviewImg);
 
     if(bWait)
@@ -159,5 +159,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    // loop over keypoints that match between previous and current frame
+    // 
 }
