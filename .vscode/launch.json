@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "try_debug_final",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/3D_object_tracking",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/build/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+        }
+    ]
+}

@@ -159,6 +159,71 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // loop over keypoints that match between previous and current frame
-    // 
+    std::multimap<int, int> bbCandidateMatches;
+
+    // loop over matches between previous and current frame
+    for (auto itMatch = matches.begin(); itMatch != matches.end(); ++itMatch)
+    {
+        // pull out identifiers for the current and previous keypoints from this match
+        int prevKeyIdx = itMatch->queryIdx;
+        int currKeyIdx = itMatch->trainIdx;
+
+        // get this match's corresponding current frame keypoint and previous frame keypoint
+        cv::KeyPoint prevKeypoint = prevFrame.keypoints[prevKeyIdx];
+        cv::KeyPoint currKeypoint = currFrame.keypoints[currKeyIdx];
+        
+        // loop over all the current frame's bounding boxes
+        for (auto itCurrBB = currFrame.boundingBoxes.begin(); itCurrBB != currFrame.boundingBoxes.end(); ++itCurrBB)
+        {
+            // check if this bounding box has the current frame keypoint
+            if (itCurrBB->roi.contains(currKeypoint.pt))
+            {
+                // loop and look for a previous frame bounding box that contains the prev frame keypoint
+                for (auto itPrevBB = prevFrame.boundingBoxes.begin(); itPrevBB != prevFrame.boundingBoxes.end(); ++itPrevBB)
+                {
+                    if (itPrevBB->roi.contains(prevKeypoint.pt))
+                    {
+                        // add the bounding box for the current frame and the previous frame to a multimap (https://www.geeksforgeeks.org/multimap-associative-containers-the-c-standard-template-library-stl/)
+                        // (previousID, currentID)
+                        bbCandidateMatches.insert(pair<int, int>(itPrevBB->boxID, itCurrBB->boxID));
+                    }
+                }
+            }
+        }
+    }
+
+    // loop over candidates and count how many times it has a specific pair
+    // loop over all the current frame's bounding boxes
+    std::vector<std::tuple<int, int, int>> bbMatchCounts;  //https://en.cppreference.com/w/cpp/utility/tuple
+    for (auto itCurrBB = currFrame.boundingBoxes.begin(); itCurrBB != currFrame.boundingBoxes.end(); ++itCurrBB)
+    {
+        for (auto itPrevBB = prevFrame.boundingBoxes.begin(); itPrevBB != prevFrame.boundingBoxes.end(); ++itPrevBB)
+        {
+            int count = 0;
+            for (auto itCandidatePair = bbCandidateMatches.begin(); itCandidatePair != bbCandidateMatches.end(); ++itCandidatePair)
+            {
+                if ((itCandidatePair->first == itPrevBB->boxID) && (itCandidatePair->second == itCurrBB->boxID))
+                {
+                    count++;
+                }
+            }
+            bbMatchCounts.push_back(std::make_tuple(itPrevBB->boxID, itCurrBB->boxID, count));
+        }
+    }
+
+
+
+    std::cout << "Match Candidates" << std::endl;
+    for (auto it = bbCandidateMatches.begin(); it != bbCandidateMatches.end(); ++it){
+        cout << '\t' << it->first << '\t' << it->second << endl;
+    }
+
+    std::cout << "Match Counts" << std::endl;
+    for (auto it = bbMatchCounts.begin(); it != bbMatchCounts.end(); ++it)
+    {
+        cout << '\t' << std::get<0>(*it) << '\t' << std::get<1>(*it) << '\t' << std::get<2>(*it) << endl;
+    }
+
+    std::cout << "Matching Complete" << endl;
+
 }
