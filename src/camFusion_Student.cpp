@@ -4,6 +4,7 @@
 #include <numeric>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <set>
 
 #include "camFusion.hpp"
 #include "dataStructures.h"
@@ -211,17 +212,90 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         }
     }
 
+    // create set of previous bb ids and current bb ids: https://www.geeksforgeeks.org/set-in-cpp-stl/
+    std::set<int> prevBB_ids;
+    std::set<int> currBB_ids;
 
-
-    std::cout << "Match Candidates" << std::endl;
-    for (auto it = bbCandidateMatches.begin(); it != bbCandidateMatches.end(); ++it){
-        cout << '\t' << it->first << '\t' << it->second << endl;
+    for (auto itCurrBB = currFrame.boundingBoxes.begin(); itCurrBB != currFrame.boundingBoxes.end(); ++itCurrBB)
+    {
+        currBB_ids.insert(itCurrBB->boxID);
     }
+
+    for (auto itPrevBB = prevFrame.boundingBoxes.begin(); itPrevBB != prevFrame.boundingBoxes.end(); ++itPrevBB)
+    {
+        prevBB_ids.insert(itPrevBB->boxID);
+    }
+
+    // see which set has less bounding boxes (this can be the max number of matches ... assuming exclusive matching)
+    bool prevImageHasLessBBs = prevBB_ids.size() < currBB_ids.size() ? true : false;
+
+    if (prevImageHasLessBBs)
+    {
+        // loop over the previous BBs
+        for (auto itPrevBB = prevFrame.boundingBoxes.begin(); itPrevBB != prevFrame.boundingBoxes.end(); ++itPrevBB)
+        {
+                int maxMatches = 0;
+                int bestCurrId = 0;
+                
+                // loop over the match counts
+                for (auto itMatchCount = bbMatchCounts.begin(); itMatchCount != bbMatchCounts.end(); ++itMatchCount)
+                {
+                    if (std::get<0>(*itMatchCount) == itPrevBB->boxID)
+                    {
+                        if (std::get<2>(*itMatchCount) > maxMatches && (currBB_ids.count(std::get<1>(*itMatchCount)) == 1))
+                        {
+                            maxMatches = std::get<2>(*itMatchCount);
+                            bestCurrId = std::get<1>(*itMatchCount);
+                        }
+                    }
+                }
+
+                // Take the best, but also remove it from the set so it can't be used again
+                bbBestMatches.insert(pair<int, int>(itPrevBB->boxID, bestCurrId));
+        }
+    }
+    else
+    {
+        // loop over the current BBs
+        for (auto itCurrBB = currFrame.boundingBoxes.begin(); itCurrBB != currFrame.boundingBoxes.end(); ++itCurrBB)
+        {
+                int maxMatches = 0;
+                int bestPrevId = 0;
+                
+                // loop over the match counts
+                for (auto itMatchCount = bbMatchCounts.begin(); itMatchCount != bbMatchCounts.end(); ++itMatchCount)
+                {
+                    if (std::get<1>(*itMatchCount) == itCurrBB->boxID)
+                    {
+                        if (std::get<2>(*itMatchCount) > maxMatches && (prevBB_ids.count(std::get<0>(*itMatchCount)) == 1))
+                        {
+                            maxMatches = std::get<2>(*itMatchCount);
+                            bestPrevId = std::get<0>(*itMatchCount);
+                        }
+                    }
+                }
+
+                // Take the best, but also remove it from the set so it can't be used again
+                bbBestMatches.insert(pair<int, int>(bestPrevId, itCurrBB->boxID));
+        }
+    }
+
+
+    // std::cout << "Match Candidates" << std::endl;
+    // for (auto it = bbCandidateMatches.begin(); it != bbCandidateMatches.end(); ++it){
+    //     cout << '\t' << it->first << '\t' << it->second << std::endl;
+    // }
 
     std::cout << "Match Counts" << std::endl;
     for (auto it = bbMatchCounts.begin(); it != bbMatchCounts.end(); ++it)
     {
-        cout << '\t' << std::get<0>(*it) << '\t' << std::get<1>(*it) << '\t' << std::get<2>(*it) << endl;
+        cout << '\t' << std::get<0>(*it) << '\t' << std::get<1>(*it) << '\t' << std::get<2>(*it) << std::endl;
+    }
+
+    std::cout << "Best Matches" << std::endl;
+    for (auto it = bbBestMatches.begin(); it != bbBestMatches.end(); ++it)
+    {
+        cout << '\t' << it->first << '\t' << it->second << std::endl;
     }
 
     std::cout << "Matching Complete" << endl;
