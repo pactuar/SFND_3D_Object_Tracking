@@ -150,11 +150,51 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // ...
 }
 
+// Custom comparator for the x component of lidar points
+bool LidarComparatorX(LidarPoint a, LidarPoint b)
+{
+    return a.x < b.x;
+}
+
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // auxiliary variables
+    double dT = 1.0 / (frameRate + 1e-8);        // time between two measurements in seconds
+    double laneWidth = 4.0;                      // assumed width of the ego lane
+
+    // compute the median of the previous and current lidar points
+    // how to sort vector: https://en.cppreference.com/w/cpp/algorithm/sort
+    std::sort(lidarPointsPrev.begin(), lidarPointsPrev.end(), LidarComparatorX);
+    std::sort(lidarPointsCurr.begin(), lidarPointsCurr.end(), LidarComparatorX);
+
+    long medIndexPrev = floor(lidarPointsPrev.size() / 2.0);
+    double medXPrev = lidarPointsPrev.size() % 2 == 0 ? (lidarPointsPrev[medIndexPrev - 1].x + lidarPointsPrev[medIndexPrev].x) / 2.0 : lidarPointsPrev[medIndexPrev].x;
+
+    long medIndexCurr = floor(lidarPointsCurr.size() / 2.0);
+    double medXCurr = lidarPointsCurr.size() % 2 == 0 ? (lidarPointsCurr[medIndexCurr - 1].x + lidarPointsCurr[medIndexCurr].x) / 2.0 : lidarPointsCurr[medIndexCurr].x;
+
+    // // find closest distance to Lidar points within ego lane
+    // double minXPrev = 1e9, minXCurr = 1e9;
+    // for (auto it = lidarPointsPrev.begin(); it != lidarPointsPrev.end(); ++it)
+    // {
+    //     if ((it->y >= -laneWidth/2.0) && (it->y <= laneWidth/2.0))
+    //     {
+    //         minXPrev = minXPrev > it->x ? it->x : minXPrev;
+    //     }
+    // }
+
+    // for (auto it = lidarPointsCurr.begin(); it != lidarPointsCurr.end(); ++it)
+    // {
+    //     if ((it->y >= -laneWidth/2.0) && (it->y <= laneWidth/2.0))
+    //     {
+    //         minXCurr = minXCurr > it->x ? it->x : minXCurr;
+    //     }
+    // }
+
+    // compute TTC from both measurements
+    TTC = medXCurr * dT / (medXPrev - medXCurr);
 }
 
 
